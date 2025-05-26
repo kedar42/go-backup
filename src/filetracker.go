@@ -24,27 +24,22 @@ func (ft *FileTracker) HasChanges(currentFiles []string, previousFilesPath strin
 
 	if len(previousFiles) == 0 {
 		log.Println("No previous files to compare with")
-		return true
+		return len(currentFiles) > 0
 	}
 
-	if len(currentFiles) != len(previousFiles) {
-		log.Printf("File count mismatch: current=%d, previous=%d", len(currentFiles), len(previousFiles))
-		return true
+	previousFileMap := make(map[string]bool)
+	for _, file := range previousFiles {
+		previousFileMap[file] = true
 	}
 
-	fileMap := make(map[string]bool)
-	for _, file := range currentFiles {
-		fileMap[file] = true
-	}
-
-	for _, prevFile := range previousFiles {
-		if !fileMap[prevFile] {
-			log.Printf("File difference detected: %s", prevFile)
+	for _, currentFile := range currentFiles {
+		if !previousFileMap[currentFile] {
+			log.Printf("New file detected: %s", currentFile)
 			return true
 		}
 	}
 
-	log.Println("No file changes detected")
+	log.Println("No new files detected, backup not needed")
 	return false
 }
 

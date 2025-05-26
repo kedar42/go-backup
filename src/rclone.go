@@ -30,7 +30,7 @@ func (r *RcloneClient) ListFiles(source, configPath string) ([]string, error) {
 }
 
 func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuffer time.Duration, configPath string, forced bool) error {
-	args := []string{"copy", source, destination, "--stats-one-line", "--log-file", "/tmp/rclone.log"}
+	args := []string{"copy", source, destination, "--stats-one-line", "--log-file", "/tmp/rclone.log", "-v"}
 
 	if configPath != "" {
 		args = append([]string{"--config", configPath}, args...)
@@ -39,10 +39,10 @@ func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuf
 	if lastRun != "" && !forced {
 		if adjustedTime, err := r.calculateAdjustedTime(lastRun, overlapBuffer); err == nil {
 			args = append(args, "--max-age", adjustedTime)
-			log.Printf("Using --min-age with overlap: original=%s, adjusted=%s (buffer: %v)",
+			log.Printf("Using --max-age with overlap: original=%s, adjusted=%s (buffer: %v)",
 				lastRun, adjustedTime, overlapBuffer)
 		} else {
-			log.Printf("Error parsing last run time, proceeding without --min-age: %v", err)
+			log.Printf("Error parsing last run time, proceeding without --max-age: %v", err)
 		}
 	} else {
 		log.Printf("Forced copy or no previous run timestamp, copying all files")
