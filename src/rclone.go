@@ -30,7 +30,7 @@ func (r *RcloneClient) ListFiles(source, configPath string) ([]string, error) {
 }
 
 func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuffer time.Duration, configPath string, forced bool) error {
-	args := []string{"copy", source, destination, "--stats-one-line", "--log-file", "/tmp/rclone.log", "-v", "-stats", "15s"}
+	args := []string{"copy", source, destination, "--stats-one-line", "--log-file", "/tmp/rclone.log", "-v", "--stats", "15s"}
 
 	if configPath != "" {
 		args = append([]string{"--config", configPath}, args...)
