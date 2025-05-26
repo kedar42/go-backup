@@ -29,27 +29,30 @@ func (r *RcloneClient) ListFiles(source, configPath string) ([]string, error) {
 	return r.filterEmptyFiles(files), nil
 }
 
-func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuffer time.Duration, configPath string) error {
-	args := []string{"copy", source, destination, "--stats-one-line-date"}
+func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuffer time.Duration, configPath string, forced bool) error {
+	args := []string{"copy", source, destination, "--stats-one-line", "--log-file", "/tmp/rclone.log"}
 
 	if configPath != "" {
 		args = append([]string{"--config", configPath}, args...)
 	}
 
-	if lastRun != "" {
+	if lastRun != "" && !forced {
 		if adjustedTime, err := r.calculateAdjustedTime(lastRun, overlapBuffer); err == nil {
-			args = append(args, "--min-age", adjustedTime)
+			args = append(args, "--max-age", adjustedTime)
 			log.Printf("Using --min-age with overlap: original=%s, adjusted=%s (buffer: %v)",
 				lastRun, adjustedTime, overlapBuffer)
 		} else {
 			log.Printf("Error parsing last run time, proceeding without --min-age: %v", err)
 		}
 	} else {
-		log.Println("No previous run timestamp, copying all files")
+		log.Printf("Forced copy or no previous run timestamp, copying all files")
 	}
+
+	startTime := time.Now()
 
 	log.Printf("Executing: rclone %s", strings.Join(args, " "))
 	cmd := exec.Command("rclone", args...)
+	// TODO: If logfile works, check only for errors
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -58,11 +61,9 @@ func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuf
 		return err
 	}
 
-	if len(output) > 0 {
-		log.Printf("Copy operation completed:\n%s", string(output))
-	} else {
-		log.Println("Copy operation completed successfully (no output)")
-	}
+	duration := time.Since(startTime)
+
+	log.Printf("Files copied successfully in %s", duration)
 
 	return nil
 }

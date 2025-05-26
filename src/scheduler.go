@@ -86,7 +86,7 @@ func (s *Scheduler) performBackup(cfg Config, files []string, hasChanges, forceB
 
 	lastRunTime := s.fileTracker.GetLastRunTime(cfg.TimestampFile)
 
-	if err := s.rclone.CopyFiles(cfg.Source, cfg.Destination, lastRunTime, cfg.OverlapBuffer, cfg.RcloneConfigPath); err != nil {
+	if err := s.rclone.CopyFiles(cfg.Source, cfg.Destination, lastRunTime, cfg.OverlapBuffer, cfg.RcloneConfigPath, forceBackup); err != nil {
 		log.Printf("Backup failed: %v", err)
 		return
 	}
