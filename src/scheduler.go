@@ -167,7 +167,7 @@ waitForFile:
 			}
 
 			if matches := etaRegex.FindStringSubmatch(line); matches != nil {
-				log.Printf("First ETA found: %s", matches[1])
+				log.Printf("ETA: %s", matches[1])
 				return
 			}
 		}

@@ -9,4 +9,5 @@ It was mainly developed by me to use in my homelab and I wanted to keep as much 
 - [x] Ensure that on force backup, --min-age is not used
 - [x] Fix output of `rsync copy` command
 - [x] Add log info how many files were copied and how long it took
+- [ ] If backup fails, previous files are still modified,
 - [ ] Add signing of Docker images

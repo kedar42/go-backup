@@ -34,7 +34,7 @@ func (ft *FileTracker) HasChanges(currentFiles []string, previousFilesPath strin
 
 	for _, currentFile := range currentFiles {
 		if !previousFileMap[currentFile] {
-			log.Printf("New file detected: %s", currentFile)
+			log.Printf("New file detected")
 			return true
 		}
 	}
