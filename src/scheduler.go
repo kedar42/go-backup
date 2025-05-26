@@ -124,6 +124,22 @@ func (s *Scheduler) performBackup(cfg Config, files []string, hasChanges, forceB
 }
 
 func watchForFirstETA(ctx context.Context, logFilePath string) {
+	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+waitForFile:
+	for {
+		select {
+		case <-waitCtx.Done():
+			log.Println("Timeout reached while waiting for first ETA, stopping monitoring")
+			return
+		default:
+			if _, err := os.Stat(logFilePath); err == nil {
+				break waitForFile
+			}
+		}
+	}
+
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		log.Printf("Failed to open rclone log for monitoring: %v", err)
