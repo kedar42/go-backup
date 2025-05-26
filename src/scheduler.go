@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -86,6 +90,10 @@ func (s *Scheduler) performBackup(cfg Config, files []string, hasChanges, forceB
 
 	lastRunTime := s.fileTracker.GetLastRunTime(cfg.TimestampFile)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go watchForFirstETA(ctx, "/tmp/rclone.log")
+
 	if err := s.rclone.CopyFiles(cfg.Source, cfg.Destination, lastRunTime, cfg.OverlapBuffer, cfg.RcloneConfigPath, forceBackup); err != nil {
 		log.Printf("Backup failed: %v", err)
 		return
@@ -102,6 +110,52 @@ func (s *Scheduler) performBackup(cfg Config, files []string, hasChanges, forceB
 	}
 
 	log.Println("Backup completed successfully")
+
+	if totalSize, copiedItems, err := parseRcloneLog("/tmp/rclone.log"); err == nil {
+		log.Printf("Total size: %s, Copied items: %d", totalSize, copiedItems)
+	} else {
+		log.Printf("Failed to parse rclone log: %v", err)
+	}
+
+	err := os.Remove("/tmp/rclone.log")
+	if err != nil {
+		log.Printf("Failed to remove rclone log file: %v", err)
+	}
+}
+
+func watchForFirstETA(ctx context.Context, logFilePath string) {
+	file, err := os.Open(logFilePath)
+	if err != nil {
+		log.Printf("Failed to open rclone log for monitoring: %v", err)
+		return
+	}
+	defer file.Close()
+
+	file.Seek(0, io.SeekEnd)
+	reader := bufio.NewReader(file)
+	etaRegex := regexp.MustCompile(`ETA\s+([0-9]+[hms]+(?:[0-9]+[ms]+)*)`)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					time.Sleep(200 * time.Millisecond)
+					continue
+				}
+				log.Printf("Error reading log file: %v", err)
+				return
+			}
+
+			if matches := etaRegex.FindStringSubmatch(line); matches != nil {
+				log.Printf("First ETA found: %s", matches[1])
+				return
+			}
+		}
+	}
 }
 
 func (s *Scheduler) getBackupReason(hasChanges, forceBackup bool) string {
@@ -126,4 +180,29 @@ func (s *Scheduler) logConfig(cfg Config) {
 	} else {
 		log.Printf("Rclone config: using default location")
 	}
+}
+
+func parseRcloneLog(filename string) (string, int, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return "", 0, err
+	}
+
+	progressPattern := regexp.MustCompile(`(\d+\.\d+\s+[KMGT]?i?B)\s+/\s+(\d+\.\d+\s+[KMGT]?i?B)`)
+	copiedPattern := regexp.MustCompile(`Multi-thread Copied \(new\)`)
+
+	var totalSize string
+	copiedItems := 0
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if matches := progressPattern.FindStringSubmatch(line); matches != nil {
+			totalSize = matches[2]
+		}
+
+		if copiedPattern.MatchString(line) {
+			copiedItems++
+		}
+	}
+	return totalSize, copiedItems, nil
 }

@@ -52,17 +52,18 @@ func (r *RcloneClient) CopyFiles(source, destination, lastRun string, overlapBuf
 
 	log.Printf("Executing: rclone %s", strings.Join(args, " "))
 	cmd := exec.Command("rclone", args...)
-	// TODO: If logfile works, check only for errors
-	output, err := cmd.CombinedOutput()
 
-	if err != nil {
-		log.Printf("Error copying files: %v", err)
-		log.Printf("Rclone output: %s", string(output))
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to start rclone: %v", err)
+		return err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		log.Printf("Rclone exited with error: %v", err)
 		return err
 	}
 
 	duration := time.Since(startTime)
-
 	log.Printf("Files copied successfully in %s", duration)
 
 	return nil
